@@ -5,7 +5,7 @@
 // **สำคัญ:** host คือชื่อ service ของ database ใน docker-compose.yml
 $host = 'db';
 $user = 'user'; // ตรงกับ MYSQL_USER ใน docker-compose.yml
-$pass = 'password'; // ตรงกับ MYSQL_PASSWORD ใน docker-compose.yml
+$pass = 'root1234'; // ตรงกับ MYSQL_PASSWORD ใน docker-compose.yml
 $db_name = 'my_php_app_db'; // ตรงกับ MYSQL_DATABASE ใน docker-compose.yml
 
 // สร้างการเชื่อมต่อ
