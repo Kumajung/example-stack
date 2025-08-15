@@ -3,22 +3,21 @@ version: '3.8'
 services:
   # 1. PHP Service (ทำงานบน Apache)
   php-app:
-    # build: . บอกให้สร้าง Image จาก Dockerfile ในโฟลเดอร์นี้
-    build: .
+    image: php:8.2-apache  # ใช้ Image ของ PHP 8.2 ที่มี Apache ติดตั้งมาให้
     container_name: my-php-app
     restart: unless-stopped
-    # --- ลบบรรทัด volumes ตรงนี้ออกไป ---
-    # volumes:
-    #   - ./src:/var/www/html/
+    volumes:
+      - ./src:/var/www/html/ # เชื่อมโค้dในโฟลเดอร์ src เข้ากับคอนเทนเนอร์
     ports:
-      - "8080:80"
+      - "8080:80" # แมพพอร์ต 8080 ของเครื่องโฮสต์เข้ากับพอร์ต 80 ของคอนเทนเนอร์
     environment:
+      # ส่งค่าการเชื่อมต่อฐานข้อมูลเข้าไปให้ PHP ใช้
       - MYSQL_HOST=mysql-db
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     depends_on:
-      - mysql-db
+      - mysql-db # บอกให้เริ่มทำงานหลังจาก mysql-db พร้อมใช้งาน
 
   # 2. MySQL Database Service
   mysql-db:
