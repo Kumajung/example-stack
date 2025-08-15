@@ -1,55 +1,85 @@
-# docker-compose.yml
-
+# กำหนดเวอร์ชันของ Docker Compose
 version: '3.8'
 
+# กำหนด Services หรือ Containers ที่จะทำงานใน Stack นี้
 services:
-  # Service สำหรับ PHP และ Apache Web Server
-  php-app:
-    build: .
-    container_name: my-php-app
+  # Service สำหรับ Backend (Node.js + Express)
+  backend:
+    build:
+      context: ./backend      # ระบุว่าให้ Build Docker image จากโฟลเดอร์ ./backend
+      dockerfile: Dockerfile  # โดยใช้ไฟล์ชื่อ Dockerfile
+    container_name: backend_service
+    restart: unless-stopped   # Restart container อัตโนมัติยกเว้นตอนที่เราสั่งหยุดเอง
     ports:
-      - "8887:80" # เข้าถึงเว็บผ่าน http://localhost:8887
+      - "3011:3011"           # Map port 3001 ของเครื่อง Host ไปยัง Port 3001 ของ Container
     volumes:
-      - ./src:/var/www/html/ # Map โฟลเดอร์ src เข้าไปใน container
-    depends_on:
-      - db
+      - ./backend:/usr/src/app         # Mount source code จากเครื่อง Host ไปยัง Container เพื่อให้แก้ไขโค้ดได้ทันที
+      - /usr/src/app/node_modules    # ใช้ Volume แยกสำหรับ node_modules เพื่อป้องกันการเขียนทับจาก Host
     networks:
-      - my-app-network
+      - app-network           # เชื่อมต่อกับ network ที่สร้างขึ้น
+    environment:
+      - DB_HOST=mysql_db      # Environment variables สำหรับเชื่อมต่อ Database
+      - DB_USER=myuser
+      - DB_PASSWORD=mypassword
+      - DB_DATABASE=mydatabase
+    depends_on:
+      - mysql_db              # กำหนดให้ Service นี้เริ่มทำงานหลังจาก mysql_db เริ่มทำงานแล้ว
+
+  # Service สำหรับ Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend_service
+    restart: unless-stopped
+    ports:
+      - "5173:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - app-network
+    stdin_open: true          # จำเป็นสำหรับ React Dev Server
+    tty: true                 # จำเป็นสำหรับ React Dev Server
 
   # Service สำหรับ MySQL Database
-  db:
-    image: mysql:8.0
-    container_name: my-mysql-db
-    restart: always
+  mysql_db:
+    image: mysql:8.0          # ใช้ Official MySQL image เวอร์ชัน 8.0
+    container_name: mysql_db_service
+    restart: unless-stopped
+    ports:
+      - "3366:3306"           # Map port สำหรับเชื่อมต่อจากภายนอก (เช่น MySQL Workbench)
     environment:
-      MYSQL_ROOT_PASSWORD: your_strong_password # <--- เปลี่ยนเป็นรหัสผ่านของคุณ
-      MYSQL_DATABASE: my_php_app_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: myrootpassword # รหัสผ่านสำหรับ root user
+      MYSQL_DATABASE: mydatabase          # สร้าง Database ชื่อ mydatabase
+      MYSQL_USER: myuser                  # สร้าง User ชื่อ myuser
+      MYSQL_PASSWORD: mypassword          # กำหนดรหัสผ่านสำหรับ myuser
     volumes:
-      - db-data:/var/lib/mysql # เก็บข้อมูล database แม้จะปิด container ไปแล้ว
+      - mysql_data:/var/lib/mysql         # Mount volume เพื่อเก็บข้อมูล Database อย่างถาวร
     networks:
-      - my-app-network
+      - app-network
 
   # Service สำหรับ phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: my-phpmyadmin
+    container_name: phpmyadmin_service
+    restart: unless-stopped
     ports:
-      - "8083:80" # เข้าถึง phpMyAdmin ผ่าน http://localhost:8083
+      - "8081:80"
     environment:
-      PMA_HOST: db # ชื่อ service ของ MySQL
-      MYSQL_ROOT_PASSWORD: root1234 # <--- ต้องตรงกับ MYSQL_ROOT_PASSWORD ของ db
-    depends_on:
-      - db
+      PMA_HOST: mysql_db                  # ระบุ Host ของ MySQL ที่จะเชื่อมต่อ (ใช้ชื่อ Service)
+      MYSQL_ROOT_PASSWORD: myrootpassword # รหัสผ่าน root เพื่อให้ phpMyAdmin ล็อกอินได้
     networks:
-      - my-app-network
+      - app-network
+    depends_on:
+      - mysql_db
 
-# กำหนด Network ให้ services คุยกันได้
+# กำหนด Network
 networks:
-  my-app-network:
-    driver: bridge
+  app-network:
+    driver: bridge            # สร้าง Bridge network เพื่อให้ container ใน stack นี้สื่อสารกันได้ผ่านชื่อ service
 
-# กำหนด Volume สำหรับเก็บข้อมูล Database
+# กำหนด Volumes
 volumes:
-  db-data:
+  mysql_data:
+    driver: local             # สร้าง local volume ชื่อ mysql_data เพื่อเก็บข้อมูล
