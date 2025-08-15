@@ -1,61 +1,76 @@
 version: '3.8'
 
 services:
-  # Service ที่ 1: PHP และ Apache Web Server
-  php-apache:
-    image: php:8.2-apache # ใช้ Official Image ของ PHP 8.2 ที่มี Apache ติดตั้งมาให้
+  # Service ที่ 1: PHP Application (App Server)
+  app:
+    # สั่งให้ build Image จาก Dockerfile ของเรา
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
     container_name: my-php-app
-    volumes:
-      - ./public:/var/www/html # Map โฟลเดอร์ public ในโปรเจกต์ของคุณเข้ากับ /var/www/html ใน Container
+    restart: unless-stopped
     ports:
-      - "8083:80" # เข้าถึงเว็บของคุณผ่าน Port 8083 บนเครื่อง Host
-    depends_on:
-      - db # บอกให้เริ่มทำงานหลังจาก Service 'db' (MySQL) พร้อมใช้งาน
+      # Map Port 8080 ของ Host ไปที่ Port 80 ของ Container
+      - "8080:80"
+    volumes:
+      # Mount โค้ดจาก local เข้าไปใน container (เหมาะสำหรับตอนพัฒนา)
+      # หากต้องการให้โค้ดอยู่ใน Image เลย ให้เอาบรรทัดนี้ออก
+      - ./src:/var/www/html
     environment:
-      # ส่งค่า Environment Variables ไปให้ PHP ใช้เชื่อมต่อ DB
+      # ส่งค่า Environment Variables ให้ PHP ใช้
+      - MYSQL_HOST=db
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    depends_on:
+      # สั่งให้รอจนกว่า Service 'db' จะพร้อมใช้งาน
+      - db
     networks:
       - app-network
 
-  # Service ที่ 2: MySQL Database
+  # Service ที่ 2: MySQL Database (Database Server)
   db:
     image: mysql:8.0
     container_name: my-mysql-db
-    restart: always
+    restart: unless-stopped
     environment:
-      # ตั้งค่า Root Password และสร้าง Database/User เริ่มต้น
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # รหัสผ่าน Root ของ MySQL
-      MYSQL_DATABASE: ${MYSQL_DATABASE} # ชื่อ Database ที่จะสร้าง
-      MYSQL_USER: ${MYSQL_USER} # ชื่อ User ที่จะสร้าง
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD} # รหัสผ่านของ User
+      # ตั้งค่า Root Password, Database, User, และ Password
+      # Portainer จะให้เรากรอกค่าพวกนี้ตอน Deploy
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
-      - db-data:/var/lib/mysql # ใช้ Volume เพื่อเก็บข้อมูล Database อย่างถาวร
+      # สร้าง Volume ชื่อ 'db_data' เพื่อเก็บข้อมูล Database อย่างถาวร
+      # แม้จะลบ Container ทิ้ง ข้อมูลก็จะไม่หาย
+      - db_data:/var/lib/mysql
     networks:
       - app-network
 
-  # Service ที่ 3: phpMyAdmin
+  # Service ที่ 3: phpMyAdmin (Database Management Tool)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: my-phpmyadmin
-    restart: always
+    restart: unless-stopped
     ports:
-      - "8084:80" # เข้าถึง phpMyAdmin ผ่าน Port 8084
+      # Map Port 8081 ของ Host ไปที่ Port 80 ของ Container
+      - "8081:80"
     environment:
-      PMA_HOST: db # Tells phpMyAdmin that the database host is the 'db' service
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Use the MySQL root password to log in
+      # บอก phpMyAdmin ว่า Host ของ Database คือ Service 'db'
+      - PMA_HOST=db
+      # บอก Port ของ MySQL
+      - PMA_PORT=3306
     depends_on:
-      - db # ต้องรอให้ db พร้อมก่อน
+      - db
     networks:
       - app-network
 
-# กำหนด Network ให้ทุก Service คุยกันได้ผ่านชื่อ Service
+# กำหนด Network ให้ Service คุยกันผ่านชื่อ Service ได้
 networks:
   app-network:
     driver: bridge
 
-# กำหนด Volume สำหรับเก็บข้อมูล Database
+# กำหนด Volumes ที่จะใช้
 volumes:
-  db-data:
+  db_data:
     driver: local
