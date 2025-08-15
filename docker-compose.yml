@@ -43,8 +43,8 @@ services:
     ports:
       - "8084:80" # เข้าถึง phpMyAdmin ผ่าน Port 8084
     environment:
-      PMA_HOST: db # บอก phpMyAdmin ว่า Database Host คือ service 'db'
-      MYSQL_ROOT_PASSWOWORD: ${MYSQL_ROOT_PASSWORD} # ใช้รหัสผ่าน Root ของ MySQL เพื่อล็อกอิน
+      PMA_HOST: db # Tells phpMyAdmin that the database host is the 'db' service
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Use the MySQL root password to log in
     depends_on:
       - db # ต้องรอให้ db พร้อมก่อน
     networks:
