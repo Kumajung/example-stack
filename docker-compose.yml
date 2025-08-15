@@ -1,62 +1,55 @@
-version: "3.9"
+# docker-compose.yml
+
+version: '3.8'
 
 services:
-  app:
-    build:
-      context: ./php
-      dockerfile: Dockerfile
-    container_name: php-app
-    environment:
-      APACHE_DOCUMENT_ROOT: /var/www/html/public
-      MYSQL_HOST: db
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - ./src:/var/www/html
+  # Service สำหรับ PHP และ Apache Web Server
+  php-app:
+    build: .
+    container_name: my-php-app
     ports:
-      - "${APP_PORT:-8080}:80"
+      - "8087:80" # เข้าถึงเว็บผ่าน http://localhost:8087
+    volumes:
+      - ./src:/var/www/html/ # Map โฟลเดอร์ src เข้าไปใน container
     depends_on:
       - db
     networks:
-      - appnet
-    restart: unless-stopped
+      - my-app-network
 
+  # Service สำหรับ MySQL Database
   db:
     image: mysql:8.0
-    container_name: mysql
+    container_name: my-mysql-db
+    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: your_strong_password # <--- เปลี่ยนเป็นรหัสผ่านของคุณ
+      MYSQL_DATABASE: my_php_app_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
     volumes:
-      - db_data:/var/lib/mysql
-      - ./mysql/init:/docker-entrypoint-initdb.d
-    ports:
-      - "${DB_PORT:-3306}:3306"
+      - db-data:/var/lib/mysql # เก็บข้อมูล database แม้จะปิด container ไปแล้ว
     networks:
-      - appnet
-    restart: unless-stopped
+      - my-app-network
 
+  # Service สำหรับ phpMyAdmin
   phpmyadmin:
-    image: phpmyadmin:5.2
-    container_name: phpmyadmin
-    environment:
-      PMA_HOST: db
-      PMA_USER: ${MYSQL_USER}
-      PMA_PASSWORD: ${MYSQL_PASSWORD}
-      UPLOAD_LIMIT: 128M
+    image: phpmyadmin/phpmyadmin
+    container_name: my-phpmyadmin
     ports:
-      - "${PMA_PORT:-8081}:80"
+      - "8083:80" # เข้าถึง phpMyAdmin ผ่าน http://localhost:8083
+    environment:
+      PMA_HOST: db # ชื่อ service ของ MySQL
+      MYSQL_ROOT_PASSWORD: root1234 # <--- ต้องตรงกับ MYSQL_ROOT_PASSWORD ของ db
     depends_on:
       - db
     networks:
-      - appnet
-    restart: unless-stopped
+      - my-app-network
 
+# กำหนด Network ให้ services คุยกันได้
 networks:
-  appnet:
+  my-app-network:
+    driver: bridge
 
+# กำหนด Volume สำหรับเก็บข้อมูล Database
 volumes:
-  db_data:
+  db-data:
